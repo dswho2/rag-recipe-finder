@@ -28,6 +28,7 @@ MVP Feature List:
 
 #### Backend Layer
 - AWS Lambda + API Gateway
+- Poetry for Python dependency management
 - LangChain for RAG pipeline
 - OpenAI API for embeddings and generation
 - AWS DynamoDB for structured data
@@ -76,7 +77,7 @@ MVP Feature List:
   - Generate a new recipe variation using GPT.
 - If the user chooses to generate:
   - The selected recipe(s) are included in a prompt.
-  - OpenAI’s language model generates a tailored recipe.
+  - OpenAI's language model generates a tailored recipe.
   - The response is formatted and returned to the frontend.
 
 ## Project Structure
@@ -101,6 +102,55 @@ rag-recipe-finder/
 └── scripts/              # Utility scripts
 ```
 
+## Setup
+
+### Frontend Setup
+1. Navigate to the frontend directory:
+```bash
+cd frontend
+```
+
+2. Install dependencies:
+```bash
+npm install
+```
+
+3. Start the development server:
+```bash
+npm run dev
+```
+
+### Backend Setup
+
+1. Navigate to the backend directory:
+```bash
+cd backend
+```
+
+2. Install pip dependencies first (required due to some package issues):
+```bash
+pip install -r requirements.txt
+```
+
+3. Install remaining dependencies with Poetry:
+```bash
+poetry install
+```
+
+4. Set up environment variables:
+Create a `.env` file in the backend directory with:
+```
+OPENAI_API_KEY=your_openai_key
+PINECONE_API_KEY=your_pinecone_key
+PINECONE_ENVIRONMENT=your_pinecone_env
+PINECONE_INDEX_NAME=your_index_name
+```
+
+5. Start the development server:
+```
+poetry run uvicorn app.main:app --reload
+```
+
 ## Development Roadmap
 
 ### Phase 1: Infrastructure Setup
@@ -108,6 +158,7 @@ rag-recipe-finder/
 - [ ] Pinecone setup
 - [ ] S3 bucket and CloudFront distribution
 - [ ] React + TypeScript frontend scaffold
+- [ ] Poetry initialization and dependency setup
 
 ### Phase 2: Backend Development
 - [ ] Lambda function implementation
@@ -140,6 +191,7 @@ rag-recipe-finder/
 | Monitoring | AWS CloudWatch |
 | CI/CD | GitHub Actions |
 | Data Processing | LangChain + Pinecone Client |
+| Backend Dependencies | Poetry |
 
 ## Data Ingestion
 

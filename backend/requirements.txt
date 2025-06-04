@@ -1,0 +1,5 @@
+langchain-community>=0.0.0
+openai==1.84.0
+
+# Note: These packages are installed via pip due to some package issues
+# The rest of the dependencies are managed through poetry (see pyproject.toml) 
