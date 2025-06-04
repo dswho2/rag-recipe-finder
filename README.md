@@ -1,6 +1,6 @@
 # RAG Recipe Finder
 
-A web app to find recipes based on ingredients user inputs, utilizing Retrieval-Augmented Generation (RAG).
+A web app to find recipes based on ingredients user inputs, utilizing a Retrieval-Augmented Generation (RAG) pipeline.
 
 ## Features
 
@@ -10,15 +10,74 @@ A web app to find recipes based on ingredients user inputs, utilizing Retrieval-
 - **Intelligent Matching**: Advanced algorithm to find the best recipe matches
 - **User-Friendly Interface**: Clean, modern UI for seamless recipe discovery
 
-## Technology Stack
+MVP Feature List:
 
-- **Frontend**: React with Tailwind CSS
-- **Backend**: FastAPI
-- **Vector Database**: FAISS for efficient similarity search
-- **Embeddings**: OpenAI's text-embedding-3-small
-- **LLM**: OpenAI GPT API for recipe generation
-- **Data Processing**: Python with pandas for recipe data handling
-- **Web Scraping**: Playwright for recipe collection
+- User inputs a list of ingredients
+- App finds similar recipes using semantic search
+- A language model adapts or generates a new recipe using retrieved data
+- Display full recipe to user (display multiple for user to choose)
+
+## Architecture Overview
+
+### Technology Stack
+
+#### Frontend Layer
+- React + TypeScript
+- Tailwind CSS for styling
+- AWS S3 + CloudFront for hosting
+
+#### Backend Layer
+- AWS Lambda + API Gateway
+- LangChain for RAG pipeline
+- OpenAI API for embeddings and generation
+- AWS DynamoDB for structured data
+- Pinecone for vector storage
+
+#### Authentication (if added)
+- Amazon Cognito or Clerk
+
+### Database Design
+
+#### DynamoDB Schema (Recipes Table)
+```
+{
+    recipe_id: string (partition key),
+    title: string,
+    ingredients: string[],
+    steps: string[] | string,
+    tags: string[],
+    source: string,
+    embedding_id: string
+}
+```
+
+#### Pinecone Vector Store
+- Vectors indexed by recipe_id
+- 768-dimensional embeddings (OpenAI text-embedding-ada-002)
+- Stores recipe text embeddings (title + ingredients)
+
+
+## RAG Pipeline Flow
+
+### 1. User Input Processing
+- The user submits a list of ingredients via the frontend interface.
+- The input text is embedded using OpenAI's embedding model (`text-embedding-ada-002`).
+
+### 2. Recipe Retrieval
+- A Lambda function queries Pinecone for the top K most semantically similar recipes.
+- For each retrieved vector ID, the corresponding full recipe data is fetched from DynamoDB.
+- The backend returns a list of recipe previews (title, ingredients, tags) to the frontend.
+
+> At this point, the user sees a selection of relevant recipes to choose from.
+
+### 3. User Selection and Optional Recipe Generation
+- The user can select a specific recipe to:
+  - View the full recipe details, or
+  - Generate a new recipe variation using GPT.
+- If the user chooses to generate:
+  - The selected recipe(s) are included in a prompt.
+  - OpenAI’s language model generates a tailored recipe.
+  - The response is formatted and returned to the frontend.
 
 ## Project Structure
 
@@ -42,22 +101,57 @@ rag-recipe-finder/
 └── scripts/              # Utility scripts
 ```
 
-## Pipeline Overview
+## Development Roadmap
 
-1. **Recipe Data Ingestion**
-   - Collection from multiple sources
-   - Data cleaning and normalization
-   - Embedding generation
-   - Vector database storage
+### Phase 1: Infrastructure Setup
+- [ ] AWS account configuration
+- [ ] Pinecone setup
+- [ ] S3 bucket and CloudFront distribution
+- [ ] React + TypeScript frontend scaffold
 
-2. **User Query Processing**
-   - Ingredient input normalization
-   - Query embedding generation
-   - Similarity search
-   - Recipe retrieval and ranking
+### Phase 2: Backend Development
+- [ ] Lambda function implementation
+- [ ] LangChain + Pinecone + DynamoDB integration
+- [ ] Query embedding and retrieval logic
 
-3. **Recipe Generation**
-   - Context preparation
-   - LLM-based recipe generation
-   - Result formatting and presentation
+### Phase 3: Data Pipeline
+- [ ] Recipe dataset processing
+- [ ] Data normalization (units, ingredients)
+- [ ] Embedding generation
+- [ ] Database population
 
+### Phase 4: MVP Integration
+- [ ] Frontend-backend integration
+- [ ] RAG pipeline testing
+- [ ] Recipe display implementation
+
+### Phase 5: Optional Features
+- [ ] User authentication
+- [ ] Recipe saving functionality
+- [ ] Custom recipe submission
+
+## Development Tools
+
+| Category | Tools |
+|----------|--------|
+| Lambda Deployment | AWS SAM / Serverless Framework |
+| API Testing | Postman / curl |
+| Secrets | Lambda env vars / AWS Secrets Manager |
+| Monitoring | AWS CloudWatch |
+| CI/CD | GitHub Actions |
+| Data Processing | LangChain + Pinecone Client |
+
+## Data Ingestion
+
+### Data Sources
+- Recipe1M dataset
+- Scraped recipe websites
+- User submissions (future)
+
+### Processing Pipeline
+1. Data collection and cleaning
+2. Ingredient and unit normalization
+3. Embedding generation
+4. Database insertion
+   - Recipe data → DynamoDB
+   - Embeddings → Pinecone
