@@ -54,7 +54,7 @@ MVP Feature List:
 
 #### Pinecone Vector Store
 - Vectors indexed by recipe_id
-- 768-dimensional embeddings (OpenAI text-embedding-ada-002)
+- 1536-dimensional embeddings (OpenAI text-embedding-3-small)
 - Stores recipe text embeddings (title + ingredients)
 
 
