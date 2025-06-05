@@ -16,25 +16,33 @@ class DynamoDBService:
         )
         self.table = self.dynamodb.Table(settings.DYNAMODB_TABLE_NAME)
     
-    async def ensure_table_exists(self):
-        """Create the recipes table if it doesn't exist."""
+    def ensure_table_exists(self):
+        """Ensure the recipes table exists with correct schema."""
         try:
-            # Check if table exists
-            self.table.table_status
+            self.table = self.dynamodb.Table(settings.DYNAMODB_TABLE_NAME)
+            self.table.load()
         except self.dynamodb.meta.client.exceptions.ResourceNotFoundException:
-            # Create table with proper attribute types
+            # Create table with hash index
             self.table = self.dynamodb.create_table(
                 TableName=settings.DYNAMODB_TABLE_NAME,
                 KeySchema=[
-                    {
-                        'AttributeName': 'recipe_id',  # Changed from 'id' for clarity
-                        'KeyType': 'HASH'
-                    }
+                    {'AttributeName': 'recipe_id', 'KeyType': 'HASH'}
                 ],
                 AttributeDefinitions=[
+                    {'AttributeName': 'recipe_id', 'AttributeType': 'S'},
+                    {'AttributeName': 'recipe_hash', 'AttributeType': 'S'}
+                ],
+                GlobalSecondaryIndexes=[
                     {
-                        'AttributeName': 'recipe_id',
-                        'AttributeType': 'S'  # String type for UUID
+                        'IndexName': 'recipe_hash_index',
+                        'KeySchema': [
+                            {'AttributeName': 'recipe_hash', 'KeyType': 'HASH'}
+                        ],
+                        'Projection': {'ProjectionType': 'ALL'},
+                        'ProvisionedThroughput': {
+                            'ReadCapacityUnits': 5,
+                            'WriteCapacityUnits': 5
+                        }
                     }
                 ],
                 ProvisionedThroughput={
@@ -42,11 +50,10 @@ class DynamoDBService:
                     'WriteCapacityUnits': 5
                 }
             )
-            # Wait for table to be created
             self.table.wait_until_exists()
     
     def _recipe_to_item(self, recipe: Recipe) -> Dict[str, Any]:
-        """Convert Recipe model to DynamoDB item with proper type handling."""
+        """Convert Recipe model to DynamoDB item."""
         # Convert complex types to strings to ensure DynamoDB compatibility
         ingredients_str = json.dumps([{
             'text': str(ing.text),
@@ -62,17 +69,19 @@ class DynamoDBService:
         
         # Build item with proper type handling
         item = {
-            'recipe_id': str(recipe.id),  # Partition key, must be string
+            'recipe_id': str(recipe.id),  # Partition key
+            'recipe_hash': str(recipe.recipe_hash),  # For duplicate detection
             'title': str(recipe.title),
             'description': str(recipe.description) if recipe.description else None,
-            'ingredients': ingredients_str,  # Store as JSON string
-            'instructions': instructions_str,  # Store as JSON string
+            'ingredients': ingredients_str,
+            'instructions': instructions_str,
             'cooking_time': str(recipe.cooking_time) if recipe.cooking_time is not None else None,
             'prep_time': str(recipe.prep_time) if recipe.prep_time is not None else None,
             'servings': str(recipe.servings) if recipe.servings is not None else None,
             'cuisine': str(recipe.cuisine) if recipe.cuisine else None,
-            'tags': list(map(str, recipe.tags)) if recipe.tags else [],  # List of strings
-            'source': str(recipe.source) if recipe.source else None
+            'tags': list(map(str, recipe.tags)) if recipe.tags else [],
+            'source': str(recipe.source) if recipe.source else None,
+            'source_url': str(recipe.source_url) if recipe.source_url else None
         }
         
         # Remove None values as DynamoDB doesn't support them
@@ -96,17 +105,19 @@ class DynamoDBService:
             'servings': int(item['servings']) if 'servings' in item else None,
             'cuisine': item.get('cuisine'),
             'tags': item.get('tags', []),
-            'source': item.get('source')
+            'source': item.get('source'),
+            'source_url': item.get('source_url'),
+            'recipe_hash': item['recipe_hash']  # Add the hash when converting back
         }
         return Recipe(**recipe_data)
     
-    async def store_recipe(self, recipe: Recipe) -> str:
+    def store_recipe(self, recipe: Recipe) -> str:
         """Store a recipe in DynamoDB."""
         item = self._recipe_to_item(recipe)
         self.table.put_item(Item=item)
         return item['recipe_id']
     
-    async def get_recipe(self, recipe_id: str) -> Optional[Recipe]:
+    def get_recipe(self, recipe_id: str) -> Optional[Recipe]:
         """Retrieve a recipe from DynamoDB by ID."""
         response = self.table.get_item(Key={'recipe_id': str(recipe_id)})
         item = response.get('Item')
@@ -114,7 +125,7 @@ class DynamoDBService:
             return self._item_to_recipe(item)
         return None
     
-    async def delete_recipe(self, recipe_id: str) -> bool:
+    def delete_recipe(self, recipe_id: str) -> bool:
         """Delete a recipe from DynamoDB."""
         try:
             # Check if recipe exists first
@@ -133,7 +144,7 @@ class DynamoDBService:
             print(f"Error deleting recipe: {str(e)}")
             return False
     
-    async def update_recipe(self, recipe: Recipe) -> bool:
+    def update_recipe(self, recipe: Recipe) -> bool:
         """Update an existing recipe in DynamoDB."""
         try:
             item = self._recipe_to_item(recipe)
@@ -142,8 +153,22 @@ class DynamoDBService:
         except Exception:
             return False
     
-    async def list_recipes(self, limit: int = 100) -> List[Recipe]:
+    def list_recipes(self, limit: int = 100) -> List[Recipe]:
         """List recipes from DynamoDB with pagination."""
         response = self.table.scan(Limit=limit)
         items = response.get('Items', [])
-        return [self._item_to_recipe(item) for item in items] 
+        return [self._item_to_recipe(item) for item in items]
+    
+    async def get_recipe_by_hash(self, recipe_hash: str) -> Optional[Recipe]:
+        """Get a recipe by its content hash."""
+        response = self.table.query(
+            IndexName='recipe_hash_index',
+            KeyConditionExpression='recipe_hash = :hash',
+            ExpressionAttributeValues={':hash': recipe_hash}
+        )
+        
+        items = response.get('Items', [])
+        if not items:
+            return None
+            
+        return self._item_to_recipe(items[0]) 

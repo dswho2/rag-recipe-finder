@@ -40,7 +40,8 @@ class LangChainService:
         index = self.pc.Index(settings.PINECONE_INDEX_NAME)
         self.vector_store = PineconeVectorStore(
             index=index,
-            embedding=self.embeddings
+            embedding=self.embeddings,
+            text_key="text"  # The metadata field that contains the text content
         )
         
         # Initialize chat model
@@ -57,12 +58,9 @@ class LangChainService:
     async def similar_recipes_query(self, query: str, k: int = 3) -> List[Dict[str, Any]]:
         """Find similar recipes using vector similarity."""
         # Use the latest async similarity search pattern
-        docs_and_scores = await self.vector_store.asimilarity_search_with_score(
+        docs_and_scores = await self.vector_store.asimilarity_search_with_relevance_scores(
             query,
-            k=k,
-            search_type="similarity",  # Explicitly set search type
-            score_threshold=0.4,  # Minimum similarity score
-            filter=None  # Optional metadata filter
+            k=k
         )
         
         # Process results with additional metadata

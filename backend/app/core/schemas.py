@@ -22,12 +22,14 @@ class Recipe(BaseModel):
     instructions: List[RecipeStep] = Field(..., description="List of instructions")
     cooking_time: Optional[int] = Field(None, description="Cooking time in minutes")
     prep_time: Optional[int] = Field(None, description="Preparation time in minutes")
+    total_time: Optional[int] = Field(None, description="Total time in minutes")
     servings: Optional[int] = Field(None, description="Number of servings")
     cuisine: Optional[str] = Field(None, description="Type of cuisine")
     tags: List[str] = Field(default_factory=list, description="Recipe tags/categories")
     source: Optional[str] = Field(None, description="Source of the recipe (e.g., 'Recipe1M', 'web')")
     source_url: Optional[str] = Field(None, description="Original URL if from web scraping")
     embedding_id: Optional[str] = Field(None, description="ID of the embedding in vector store")
+    recipe_hash: str = Field(..., description="Hash of title + ingredients + instructions for duplicate detection")
 
 class RecipeSearchQuery(BaseModel):
     """Schema for recipe search queries."""

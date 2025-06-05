@@ -7,6 +7,7 @@ __pycache__/
 *.py[cod]
 *$py.class
 venv/
+.venv/
 .pytest_cache/
 
 # IDE
@@ -32,3 +33,6 @@ logs/
 dist/
 build/
 *.egg-info/
+
+# temporary recipes
+recipes.csv

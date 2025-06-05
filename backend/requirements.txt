@@ -12,3 +12,4 @@ langchain-pinecone==0.2.8
 langchain-community==0.3.24
 python-dotenv==1.0.1
 mangum==0.19.0
+pandas==2.2.0
