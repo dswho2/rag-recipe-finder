@@ -62,7 +62,7 @@ MVP Feature List:
 
 ### 1. User Input Processing
 - The user submits a list of ingredients via the frontend interface.
-- The input text is embedded using OpenAI's embedding model (`text-embedding-ada-002`).
+- The input text is embedded using OpenAI's embedding model (`text-embedding-3-small`).
 
 ### 2. Recipe Retrieval
 - A Lambda function queries Pinecone for the top K most semantically similar recipes.
