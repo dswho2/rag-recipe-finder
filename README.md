@@ -28,7 +28,7 @@ MVP Feature List:
 
 #### Backend Layer
 - AWS Lambda + API Gateway
-- Poetry for Python dependency management
+- Python virtual environment (venv) for dependency management
 - LangChain for RAG pipeline
 - OpenAI API for embeddings and generation
 - AWS DynamoDB for structured data
@@ -127,14 +127,16 @@ npm run dev
 cd backend
 ```
 
-2. Install pip dependencies first (required due to some package issues):
+2. Create and activate a virtual environment:
 ```bash
-pip install -r requirements.txt
+python -m venv venv
+# On Windows:
+.\venv\Scripts\activate
 ```
 
-3. Install remaining dependencies with Poetry:
+3. Install dependencies:
 ```bash
-poetry install
+pip install -r requirements.txt
 ```
 
 4. Set up environment variables:
@@ -142,13 +144,12 @@ Create a `.env` file in the backend directory with:
 ```
 OPENAI_API_KEY=your_openai_key
 PINECONE_API_KEY=your_pinecone_key
-PINECONE_ENVIRONMENT=your_pinecone_env
 PINECONE_INDEX_NAME=your_index_name
 ```
 
 5. Start the development server:
-```
-poetry run uvicorn app.main:app --reload
+```bash
+uvicorn app.main:app --reload
 ```
 
 ## Development Roadmap
@@ -191,7 +192,7 @@ poetry run uvicorn app.main:app --reload
 | Monitoring | AWS CloudWatch |
 | CI/CD | GitHub Actions |
 | Data Processing | LangChain + Pinecone Client |
-| Backend Dependencies | Poetry |
+| Backend Dependencies | Python venv + pip |
 
 ## Data Ingestion
 
@@ -207,3 +208,26 @@ poetry run uvicorn app.main:app --reload
 4. Database insertion
    - Recipe data → DynamoDB
    - Embeddings → Pinecone
+
+## Testing
+
+### DynamoDB Integration Tests
+The following commands can be run from the `backend` directory to test DynamoDB integration:
+
+```bash
+# Run all DynamoDB tests in sequence
+python -m pytest tests/test_dynamodb_connection.py -v
+
+# Run individual operations:
+
+# 1. Store a test recipe
+python -m pytest tests/test_dynamodb_connection.py::test_store_recipe -v
+
+# 2. Verify the stored recipe
+python -m pytest tests/test_dynamodb_connection.py::test_get_recipe -v
+
+# 3. Delete the test recipe
+python -m pytest tests/test_dynamodb_connection.py::test_delete_recipe -v
+```
+
+These tests use a fixed test recipe ID (`test-recipe-001`) for consistency and easy verification in the AWS Console.
