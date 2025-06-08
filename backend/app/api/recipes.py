@@ -1,3 +1,5 @@
+# backend/app/api/recipes.py
+
 from typing import List, Dict, Any
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
@@ -30,6 +32,39 @@ class RecipeSearchResult(BaseModel):
 def get_recipe_service() -> RecipeService:
     """Dependency to get RecipeService instance."""
     return RecipeService()
+
+import traceback
+
+# for frontend to get multiple recipe suggestions
+@router.post("/suggest-multiple")
+async def suggest_multiple_recipes(
+    ingredients_input: IngredientsInput,
+    recipe_service: RecipeService = Depends(get_recipe_service)
+):
+    """
+    Generate multiple recipe suggestions based on user-provided ingredients using a RAG pipeline.
+    """
+    try:
+        count = ingredients_input.limit or 5
+        results = []
+
+        # Fetch similar recipes once
+        similar_context = await recipe_service.langchain.similar_recipes_query(
+            recipe_service._prepare_search_text(ingredients_input.ingredients),
+            k=10
+        )
+
+        structured = await recipe_service.langchain.generate_multiple_recipes(
+            ingredients_input.ingredients,
+            similar_context,
+            count=5
+        )
+
+        return structured
+    except Exception as e:
+        print("❌ Error during suggest_multiple_recipes:", str(e))
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Failed to generate recipes: {str(e)}")
 
 @router.post("/search/by-ingredients", response_model=List[RecipeSearchResult])
 async def search_by_ingredients(

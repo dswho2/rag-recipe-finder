@@ -1,3 +1,5 @@
+# backend/app/core/schemas.py
+
 from typing import List, Optional
 from pydantic import BaseModel, Field
 

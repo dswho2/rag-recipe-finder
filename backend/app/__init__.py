@@ -1,3 +1,5 @@
+# backend/app/__init__.py
+
 """
 RAG Recipe Finder Backend
 """

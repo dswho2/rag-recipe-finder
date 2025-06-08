@@ -1,27 +1,40 @@
+// App.tsx
 import { useState } from 'react'
 import TagInput from './TagInput'
 import RecipeCarousel from './RecipeCarousel'
 import 'keen-slider/keen-slider.min.css'
+import { fetchRecipeSuggestions } from './api/recipes'
 
+interface Recipe {
+  title: string;
+  description?: string;
+  ingredients: string[];
+  instructions?: string;
+  missing?: string[];
+}
+
+const SUGGESTION_COUNT = 5
 
 function App() {
   const [ingredients, setIngredients] = useState<string[]>([])
   const [isLoading, setIsLoading] = useState(false)
-
-  // TODO: Remove this once we have a real API call
-  const dummyRecipes = [
-    { title: 'Pancakes', ingredients: ['2 cups flour', '1 cup milk', '2 eggs', '1 cup sugar', '1 cup butter', '1 cup baking powder', '1 cup salt'] },
-    { title: 'Omelette', ingredients: ['2 eggs', '1 cup cheese', '1 cup spinach', '1 cup onion', '1 cup tomato', '1 cup mushroom', '1 cup garlic'] },
-    { title: 'Smoothie', ingredients: ['1 banana', '1 cup milk', '1 cup berries', '1 cup yogurt', '1 cup honey', '1 cup ice'] },
-    { title: 'Pasta', ingredients: ['1 cup pasta', '1 cup sauce', '1 cup cheese', '1 cup onion', '1 cup garlic', '1 cup tomato'] },
-    { title: 'Salad', ingredients: ['1 cup lettuce', '1 cup tomato', '1 cup cucumber'] }
-  ]
+  const [recipes, setRecipes] = useState<Recipe[]>([])
+  const [error, setError] = useState<string | null>(null)
+  const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
-    // TODO: Implement API call to backend
-    setIsLoading(false)
+    setError(null)
+    try {
+      const data = await fetchRecipeSuggestions(ingredients, SUGGESTION_COUNT)
+      setRecipes(data)
+    } catch (err) {
+      console.error(err)
+      setError("Something went wrong while fetching recipes. Please try again.")
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   return (
@@ -49,8 +62,58 @@ function App() {
             </button>
           </form>
 
-          <RecipeCarousel recipes={dummyRecipes} />
+          {error && (
+            <div className="mb-4 px-4 py-2 bg-red-100 text-red-700 border border-red-400 rounded">
+              {error}
+            </div>
+          )}
+
+          {recipes.length > 0 && (
+            <RecipeCarousel
+              recipes={recipes}
+              onView={(recipe) => setSelectedRecipe(recipe)}
+            />
+          )}
         </div>
+
+        {selectedRecipe && (
+          <div className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center">
+            <div className="bg-white rounded-lg p-6 max-w-lg w-full relative">
+              <button
+                onClick={() => setSelectedRecipe(null)}
+                className="absolute top-2 right-2 text-gray-500 hover:text-gray-700"
+              >
+                ✕
+              </button>
+              <h2 className="text-2xl font-bold mb-2">{selectedRecipe.title}</h2>
+              <p className="mb-4 text-sm text-gray-500 italic">{selectedRecipe.description}</p>
+
+              {selectedRecipe.missing && selectedRecipe.missing.length > 0 && (
+                <>
+                  <h3 className="font-semibold mb-1 text-red-600">Missing Ingredients:</h3>
+                  <ul className="list-disc list-inside text-sm mb-4 text-red-600">
+                    {selectedRecipe.missing.map((item: string, i: number) => (
+                      <li key={i}>{item}</li>
+                    ))}
+                  </ul>
+                </>
+              )}
+
+              <h3 className="font-semibold mb-1">Ingredients:</h3>
+              <ul className="list-disc list-inside text-sm mb-4">
+                {selectedRecipe.ingredients.map((item: string, i: number) => (
+                  <li key={i}>{item}</li>
+                ))}
+              </ul>
+              {selectedRecipe.instructions && (
+                <>
+                  <h3 className="font-semibold mb-1">Instructions:</h3>
+                  <p className="text-sm whitespace-pre-line">{selectedRecipe.instructions}</p>
+                </>
+              )}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )

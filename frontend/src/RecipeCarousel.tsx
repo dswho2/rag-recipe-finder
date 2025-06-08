@@ -7,9 +7,17 @@ import { ChevronLeft, ChevronRight } from 'lucide-react'
 interface Recipe {
   title: string
   ingredients: string[]
+  description?: string
+  instructions?: string
+  missing?: string[]
 }
 
-const RecipeCarousel = ({ recipes }: { recipes: Recipe[] }) => {
+interface RecipeCarouselProps {
+  recipes: Recipe[]
+  onView: (recipe: Recipe) => void
+}
+
+const RecipeCarousel = ({ recipes, onView }: RecipeCarouselProps) => {
   const [currentSlide, setCurrentSlide] = useState(0)
   const [loaded, setLoaded] = useState(false)
 
@@ -18,7 +26,7 @@ const RecipeCarousel = ({ recipes }: { recipes: Recipe[] }) => {
     slides: {
       perView: 2.5,
       spacing: 16,
-      origin: 'center', // Native centering
+      origin: 'center',
     },
     breakpoints: {
       '(min-width: 640px)': {
@@ -44,66 +52,64 @@ const RecipeCarousel = ({ recipes }: { recipes: Recipe[] }) => {
     <div className="mt-8 relative">
       <h2 className="text-2xl font-bold text-gray-900 mb-4">Recipe Suggestions</h2>
 
-      <div ref={sliderRef} className="keen-slider px-6">
-      {recipes.map((recipe, i) => (
-        <div
+      <div ref={sliderRef} className="keen-slider mx-auto">
+        {recipes.map((recipe, i) => (
+          <div
             key={i}
             className="keen-slider__slide bg-white shadow-md rounded-lg p-4 max-w-sm h-[260px] flex flex-col"
-        >
-            {/* Top section fills available space */}
+          >
             <div className="flex-grow overflow-hidden">
-                <h3 className="text-lg font-bold mb-2">{recipe.title}</h3>
-                <div className="relative h-full overflow-hidden">
-                    <ul className="text-gray-700 text-sm space-y-1">
-                    {recipe.ingredients.slice(0, 6).map((ingredient, idx) => (
-                        <li key={idx}>• {ingredient}</li>
-                    ))}
-                    </ul>
-            
-                    {/* Ellipsis if more ingredients */}
-                    {recipe.ingredients.length > 6 && (
-                    <div className="relative">
-                        {/* Fade only, starts a bit higher */}
-                        <div className="absolute -top-3 left-0 right-0 h-6 bg-gradient-to-t from-white to-transparent pointer-events-none z-0" />
+              <h3 className="text-lg font-bold mb-2">{recipe.title}</h3>
+              <div className="relative h-full overflow-hidden">
+                <ul className="text-gray-700 text-sm space-y-1">
+                  {recipe.missing?.map((item, idx) => (
+                    <li key={`m-${idx}`} className="text-red-600">• {item} <span className="italic text-xs">(missing)</span></li>
+                  ))}
+                  {recipe.ingredients.slice(0, 6 - (recipe.missing?.length ?? 0)).map((ingredient, idx) => (
+                    <li key={`i-${idx}`}>• {ingredient}</li>
+                  ))}
+                </ul>
 
-                        {/* Ellipsis, visually lower */}
-                        <div className="relative -mt-2 text-center text-xl text-gray-400 z-10 pointer-events-none">
-                        …
-                        </div>
+                {recipe.ingredients.length + (recipe.missing?.length ?? 0) > 6 && (
+                  <div className="relative">
+                    <div className="absolute -top-3 left-0 right-0 h-6 bg-gradient-to-t from-white to-transparent pointer-events-none z-0" />
+                    <div className="relative -mt-2 text-center text-xl text-gray-400 z-10 pointer-events-none">
+                      …
                     </div>
-                    )}
-                </div>
+                  </div>
+                )}
+              </div>
             </div>
-        
-            {/* Button anchored to bottom */}
-            <button className="mt-auto pt-2 text-blue-500 hover:underline font-medium">
-            View Recipe
+
+            <button
+              className="mt-auto pt-2 text-blue-500 hover:underline font-medium"
+              onClick={() => onView(recipe)}
+            >
+              View Recipe
             </button>
-        </div>      
+          </div>
         ))}
       </div>
 
-      {/* Arrows */}
       {loaded && instanceRef.current && (
         <>
-            <button
+          <button
             onClick={() => instanceRef.current?.prev()}
             className="absolute left-0 top-1/2 -translate-y-1/2 bg-white shadow-md rounded-full p-2 hover:bg-gray-100 z-10 transition hover:scale-105"
             aria-label="Previous"
-            >
+          >
             <ChevronLeft className="w-5 h-5 text-gray-700" />
-            </button>
-            <button
+          </button>
+          <button
             onClick={() => instanceRef.current?.next()}
             className="absolute right-0 top-1/2 -translate-y-1/2 bg-white shadow-md rounded-full p-2 hover:bg-gray-100 z-10 transition hover:scale-105"
             aria-label="Next"
-            >
+          >
             <ChevronRight className="w-5 h-5 text-gray-700" />
-            </button>
+          </button>
         </>
-        )}
+      )}
 
-      {/* Dots */}
       {loaded && instanceRef.current && (
         <div className="flex justify-center mt-4 gap-2">
           {recipes.map((_, idx) => (

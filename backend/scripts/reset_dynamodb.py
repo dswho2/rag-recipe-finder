@@ -1,3 +1,5 @@
+# backend/scripts/reset_dynamodb.py
+
 import boto3
 import sys
 import os

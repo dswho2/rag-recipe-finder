@@ -1,10 +1,28 @@
-from typing import List, Dict, Any
+# backend/app/services/langchain_service.py
+
+from typing import List, Dict, Any, Optional
+import json
+from pydantic import BaseModel
+from pydantic import RootModel
 from langchain_openai import OpenAIEmbeddings, ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
+from langchain.output_parsers import PydanticOutputParser
+from langchain.prompts import ChatPromptTemplate
 from langchain_pinecone import PineconeVectorStore
 from app.core.config import settings
 from pinecone import Pinecone, ServerlessSpec
+
+# Pydantic model for structured recipe output
+class RecipeSchema(BaseModel):
+    title: str
+    description: Optional[str]
+    ingredients: List[str]
+    instructions: Optional[str]
+    missing: Optional[List[str]] = []
+
+class RecipeListModel(RootModel[List[RecipeSchema]]):
+    pass
 
 class LangChainService:
     def __init__(self):
@@ -73,7 +91,43 @@ class LangChainService:
             }
             for doc, score in docs_and_scores
         ]
+
+    # Generate multiple structured recipes in a single GPT call
+    async def generate_multiple_recipes(
+        self, ingredients: List[str], context: List[Dict[str, Any]], count: int = 5
+    ) -> List[Dict[str, Any]]:
+        context_text = "\n\n".join(
+            f"""{item.get('metadata', {}).get('title', '')}:
+    Ingredients: {', '.join(item.get('metadata', {}).get('ingredients', []))}
+    {item.get('metadata', {}).get('instructions', '')}"""
+            for item in context
+        )
+
+        prompt = ChatPromptTemplate.from_messages([
+            ("system", "You are a helpful AI chef. You generate creative, realistic recipes based on the user's ingredients."),
+            ("user", (
+                "Here are example recipes:\n\n{context}\n\n"
+                "Now based only on the ingredients below:\n{ingredients}\n\n"
+                f"Generate {count} diverse recipes. Each recipe must include:\n"
+                "- title\n- description\n- ingredients (used + common pantry items)\n"
+                "- instructions\n- a field called `missing` listing ingredients not provided by the user (max 3 per recipe)\n\n"
+                "Respond only with a JSON array like this:\n"
+                "[{{\"title\": \"...\", \"description\": \"...\", \"ingredients\": [\"...\"], \"instructions\": \"...\", \"missing\": [\"...\"]}}]"
+            )),
+        ])
+
+        parser = PydanticOutputParser(pydantic_object=RecipeListModel)
+        chain = prompt | self.chat | parser
+
+        result = await chain.ainvoke({
+            "context": context_text,
+            "ingredients": ", ".join(ingredients),
+            "count": count
+        })
+
+        return [r.dict() for r in result.root]
     
+    # Generate a single recipe suggestion (legacy version)
     async def generate_recipe_suggestion(self, ingredients: List[str], context: List[Dict[str, Any]]) -> str:
         """Generate recipe suggestions based on ingredients and similar recipes."""
         # Create prompt template
@@ -108,6 +162,7 @@ class LangChainService:
         
         return response
     
+    # Store vector embedding of recipe text with metadata
     async def store_recipe_embedding(self, recipe_id: str, text: str, metadata: Dict[str, Any]):
         """Store recipe embedding in vector store."""
         # Use latest async add_texts pattern with namespace support

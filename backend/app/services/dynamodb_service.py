@@ -1,3 +1,5 @@
+# backend/app/services/dynamodb_service.py
+
 import boto3
 from typing import Dict, Any, Optional, List
 from app.core.config import settings
