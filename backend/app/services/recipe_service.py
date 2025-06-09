@@ -57,25 +57,13 @@ class RecipeService:
         return response.data[0].embedding
 
     def _prepare_recipe_text(self, recipe: Recipe) -> str:
-        """Prepare recipe text for embedding - focus on ingredients and key details."""
-        # Extract clean ingredient names
-        ingredient_names = [self._extract_ingredient_name(ing.text) for ing in recipe.ingredients]
-        ingredients_text = " ".join(ingredient_names)
-        
-        return f"""Recipe for: {recipe.title}
-Description: {recipe.description or ''}
-Main ingredients: {ingredients_text}
-Cuisine: {recipe.cuisine or ''}
-Tags: {', '.join(recipe.tags) if recipe.tags else ''}"""
+        ingredients = ", ".join(ing.text for ing in recipe.ingredients)
+        instructions = " ".join(step.text for step in recipe.instructions)
+        return f"{recipe.title}\nIngredients: {ingredients}\nInstructions: {instructions}".strip()
 
     def _prepare_metadata(self, recipe: Recipe) -> Dict[str, Any]:
-        """Prepare recipe metadata for vector store."""
         return {
             "title": recipe.title,
-            "description": recipe.description or "",
-            "ingredients": [self._extract_ingredient_name(ing.text) for ing in recipe.ingredients],
-            "original_ingredients": [ing.text for ing in recipe.ingredients],
-            "cuisine": recipe.cuisine or "",
             "tags": recipe.tags or []
         }
 
@@ -126,27 +114,24 @@ Tags: {', '.join(recipe.tags) if recipe.tags else ''}"""
             
             metadata = item["metadata"]
             
-            # Apply cuisine and tag filters
-            if cuisine and metadata.get("cuisine") != cuisine:
-                continue
+            # Apply tag filters
             if tags and not all(tag in metadata.get("tags", []) for tag in tags):
                 continue
             
             # Calculate ingredient matches
-            ingredients = metadata.get("original_ingredients", metadata["ingredients"])
+            ingredients = metadata.get("ingredients", [])
             ingredient_matches = self._calculate_ingredient_matches(ingredients, search_ingredients)
             
-            recipe_data = {
+            recipes.append({
                 "id": item["metadata"].get("id"),
-                "title": metadata["title"],
-                "description": metadata["description"],
+                "title": metadata.get("title", "Unknown"),
+                "description": "",
                 "ingredients": ingredients,
-                "cuisine": metadata.get("cuisine", ""),
+                "cuisine": "",
                 "tags": metadata.get("tags", []),
                 "score": round(float(item["score"]), 3),
                 "ingredient_matches": ingredient_matches
-            }
-            recipes.append(recipe_data)
+            })
         
         # Sort by match percentage and score
         recipes.sort(key=lambda x: (x["ingredient_matches"]["match_percentage"], x["score"]), reverse=True)

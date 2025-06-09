@@ -9,6 +9,7 @@ from typing import List, Dict, Any, Optional
 import sys
 import os
 import argparse
+from tqdm import tqdm
 
 # Add the backend directory to the Python path so we can import our app modules
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -89,9 +90,8 @@ def extract_ingredient_name(ingredient: str) -> str:
         
     # Skip quantity
     start_idx = 0
-    if parts[start_idx].replace('.','',1).replace('/','',1).replace(',','',1).replace('-','',1).isdigit():
+    if parts[start_idx].replace('.', '', 1).replace('/', '', 1).replace(',', '', 1).replace('-', '', 1).isdigit():
         start_idx += 1
-        
     # Skip units
     if start_idx < len(parts):
         clean_part = parts[start_idx].lower().rstrip('s.,')
@@ -114,6 +114,7 @@ def generate_recipe_hash(title: str, ingredients: List[str], instructions: List[
 
 async def process_recipes(csv_path: str, chunk_iterator=None, batch_size: int = 100):
     """Process recipes from CSV file and store them in our databases."""
+    import time
     # Initialize services
     recipe_service = RecipeIngestionService()  # Service initializes its own dependencies
 
@@ -170,11 +171,12 @@ async def process_recipes(csv_path: str, chunk_iterator=None, batch_size: int = 
 
         if recipes_batch:
             # Process batch
-            successful_ids = await recipe_service.batch_process_recipes(
-                [recipe.model_dump() for recipe in recipes_batch],  # Convert to dict for storage
-                RecipeSource.API.value
-            )
-            all_successful_ids.extend(successful_ids)  # Add to our list of all IDs
+            with tqdm(total=len(recipes_batch), desc="Storing batch", unit="recipes") as pbar:
+                successful_ids = await recipe_service.batch_process_recipes(
+                    [recipe.model_dump() for recipe in recipes_batch],
+                    RecipeSource.API.value
+                )
+                pbar.update(len(recipes_batch))
             
             total_processed += len(recipes_batch)
             
@@ -185,16 +187,20 @@ async def process_recipes(csv_path: str, chunk_iterator=None, batch_size: int = 
             
             print(f"Processed batch: {new_recipes} new, {duplicates} duplicates, {len(recipes_batch) - len(successful_ids)} failed")
             print(f"Total progress: {total_successful} new recipes stored")
+            if new_recipes > 0:
+                time.sleep(35)
+            else:
+                time.sleep(5)
 
     return all_successful_ids, total_processed
 
 if __name__ == "__main__":
     # Use a path that works whether we're in the root or backend directory
-    csv_path = "recipes.csv"
+    csv_path = "recipes_50k_trimmed.csv"
     if not os.path.exists(csv_path):
-        csv_path = os.path.join("..", "backend", "recipes.csv")
+        csv_path = os.path.join("..", "backend", "recipes_50k_trimmed.csv")
     if not os.path.exists(csv_path):
-        print(f"Error: Could not find recipes.csv in current directory or backend directory")
+        print(f"Error: Could not find recipes_50k_trimmed.csv in current directory or backend directory")
         print(f"Current working directory: {os.getcwd()}")
         sys.exit(1)
     

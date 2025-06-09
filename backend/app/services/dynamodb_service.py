@@ -174,3 +174,37 @@ class DynamoDBService:
             return None
             
         return self._item_to_recipe(items[0]) 
+
+    def store_recipes_batch(self, recipes: List[Recipe]) -> List[str]:
+        from boto3.dynamodb.conditions import Key
+        import time
+
+        client = self.table.meta.client
+        table_name = self.table.name
+
+        def chunked(iterable, size):
+            for i in range(0, len(iterable), size):
+                yield iterable[i:i + size]
+
+        stored_ids = []
+        for batch in chunked(recipes, 25):
+            request_items = [
+                {'PutRequest': {'Item': self._recipe_to_item(recipe)}}
+                for recipe in batch
+            ]
+            batch_request = {table_name: request_items}
+            
+            backoff = 2
+            while True:
+                response = client.batch_write_item(RequestItems=batch_request)
+                unprocessed = response.get('UnprocessedItems', {})
+                if not unprocessed:
+                    break
+                batch_request = unprocessed
+                time.sleep(backoff)
+                backoff = min(backoff * 2, 32)  # cap at 32 seconds
+
+            stored_ids.extend([recipe.id for recipe in batch])
+            time.sleep(1)
+
+        return stored_ids

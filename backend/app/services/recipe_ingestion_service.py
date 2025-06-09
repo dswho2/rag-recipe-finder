@@ -160,7 +160,7 @@ class RecipeIngestionService:
             # Check if recipe with this hash already exists
             existing_recipe = await self.dynamodb.get_recipe_by_hash(recipe_hash)
             if existing_recipe:
-                print(f"Found duplicate recipe: '{raw_recipe.get('title')}' (hash: {recipe_hash})")
+                # print(f"Found duplicate recipe: '{raw_recipe.get('title')}' (hash: {recipe_hash})")
                 return f"duplicate:{existing_recipe.id}"  # Special format to indicate duplicate
             
             # Generate recipe ID for new recipe
@@ -244,38 +244,79 @@ class RecipeIngestionService:
             return None
     
     def _prepare_recipe_text(self, recipe: Recipe) -> str:
-        """Prepare recipe text for embedding.
-        Creates a concise text representation focusing on the recipe's key aspects
-        without duplicating information that's already available in metadata."""
-        ingredients = " ".join(ing.name for ing in recipe.ingredients)  # Use clean ingredient names
+        """Prepare recipe text for embedding."""
+        ingredients = ", ".join(ing.text for ing in recipe.ingredients)
         instructions = " ".join(step.text for step in recipe.instructions)
-        return f"{recipe.title} {ingredients} {instructions}".strip()
+        return f"{recipe.title}\nIngredients: {ingredients}\nInstructions: {instructions}".strip()
     
     def _prepare_metadata(self, recipe: Recipe) -> Dict[str, Any]:
-        """Prepare recipe metadata for vector store."""
+        """Prepare minimal recipe metadata for vector store."""
         return {
             "title": recipe.title,
-            "description": recipe.description or "",
-            "ingredients": [ing.text for ing in recipe.ingredients],
-            "cuisine": recipe.cuisine or "",
-            "tags": recipe.tags or [],
-            "source": recipe.source,
-            "source_url": recipe.source_url or "",  # Convert None to empty string
-            "prep_time": recipe.prep_time or 0,  # Convert None to 0
-            "cooking_time": recipe.cooking_time or 0,  # Convert None to 0
-            "servings": recipe.servings or 0  # Convert None to 0
+            "tags": recipe.tags or []
         }
 
     async def batch_process_recipes(self, recipes: List[Dict[str, Any]], source: str) -> List[str]:
-        """
-        Process multiple recipes in batch.
-        
-        Returns:
-            List of successfully processed recipe IDs
-        """
-        successful_ids = []
-        for recipe in recipes:
-            recipe_id = await self.process_recipe(recipe, source)
-            if recipe_id:
-                successful_ids.append(recipe_id)
-        return successful_ids 
+        new_recipes = []
+        duplicate_ids = []
+        prepared_recipes = []
+        embedding_texts = []
+        embedding_metadata = []
+        embedding_ids = []
+
+        for raw in recipes:
+            recipe_hash = self._generate_recipe_hash(
+                title=raw.get('title', '').strip(),
+                ingredients=[ing.get('text', '').strip() for ing in raw.get('ingredients', [])],
+                instructions=[step.get('text', '').strip() for step in raw.get('instructions', [])]
+            )
+            existing = await self.dynamodb.get_recipe_by_hash(recipe_hash)
+            if existing:
+                duplicate_ids.append(f"duplicate:{existing.id}")
+                continue
+
+            recipe_id = self.generate_recipe_id(source, raw.get("id") or raw.get("recipe_id"))
+            ingredients = [self.normalize_ingredient(i) for i in raw.get("ingredients", [])]
+            instructions = [self.normalize_instruction(s, idx + 1) for idx, s in enumerate(raw.get("instructions", []))]
+            recipe = Recipe(
+                id=recipe_id,
+                title=raw.get("title", "").strip(),
+                description=raw.get("description", "").strip(),
+                ingredients=ingredients,
+                instructions=instructions,
+                cooking_time=raw.get("cooking_time"),
+                prep_time=raw.get("prep_time"),
+                servings=raw.get("servings"),
+                cuisine=raw.get("cuisine", "").strip(),
+                tags=raw.get("tags", []),
+                source=source,
+                source_url=raw.get("url"),
+                recipe_hash=recipe_hash
+            )
+            prepared_recipes.append(recipe)
+            embedding_texts.append(self._prepare_recipe_text(recipe))
+            embedding_metadata.append(self._prepare_metadata(recipe))
+            embedding_ids.append(recipe_id)
+
+        dynamodb_store_success = False
+        if prepared_recipes:
+            try:
+                self.dynamodb.store_recipes_batch(prepared_recipes)
+                dynamodb_store_success = True
+            except Exception as e:
+                print(f"DynamoDB batch insert failed: {str(e)}")
+
+        if embedding_texts and dynamodb_store_success:
+            try:
+                await self.langchain.vector_store.aadd_texts(
+                    texts=embedding_texts,
+                    metadatas=embedding_metadata,
+                    ids=embedding_ids,
+                    batch_size=100,
+                    show_progress=False,
+                    namespace="recipes"
+                )
+            except Exception as e:
+                print(f"Embedding batch failed: {str(e)}")
+
+        return embedding_ids + duplicate_ids

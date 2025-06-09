@@ -231,3 +231,13 @@ python -m pytest tests/test_dynamodb_connection.py::test_delete_recipe -v
 ```
 
 These tests use a fixed test recipe ID (`test-recipe-001`) for consistency and easy verification in the AWS Console.
+
+### Processing CSV Tests
+Run from `backend` directory to pass the test argument to only run one batch of 5
+```bash
+python scripts/process_csv_recipes.py --test
+```
+Can run the following command first to delete and reinit the dynamodb
+```bash
+python scripts/reset_dynamodb.py
+```

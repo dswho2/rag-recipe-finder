@@ -12,6 +12,10 @@ from langchain.prompts import ChatPromptTemplate
 from langchain_pinecone import PineconeVectorStore
 from app.core.config import settings
 from pinecone import Pinecone, ServerlessSpec
+import contextlib
+import sys
+import os
+from contextlib import redirect_stdout
 
 # Pydantic model for structured recipe output
 class RecipeSchema(BaseModel):
@@ -164,13 +168,16 @@ class LangChainService:
     
     # Store vector embedding of recipe text with metadata
     async def store_recipe_embedding(self, recipe_id: str, text: str, metadata: Dict[str, Any]):
-        """Store recipe embedding in vector store."""
-        # Use latest async add_texts pattern with namespace support
-        await self.vector_store.aadd_texts(
-            texts=[text],
-            metadatas=[metadata],
-            ids=[recipe_id],
-            batch_size=100,  # Process in batches for better performance
-            show_progress=True,  # Show progress bar for large operations
-            namespace="recipes"  # Optional namespace for organization
-        ) 
+        suppress_output = len(text.split()) < 50  # heuristic for tiny inputs
+        stream = open(os.devnull, 'w') if suppress_output else sys.stdout
+        with redirect_stdout(stream):
+            await self.vector_store.aadd_texts(
+                texts=[text],
+                metadatas=[metadata],
+                ids=[recipe_id],
+                batch_size=100,
+                show_progress=False,
+                namespace="recipes"
+            )
+        if suppress_output:
+            stream.close()

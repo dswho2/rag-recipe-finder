@@ -46,7 +46,6 @@ async def suggest_multiple_recipes(
     """
     try:
         count = ingredients_input.limit or 5
-        results = []
 
         # Fetch similar recipes once
         similar_context = await recipe_service.langchain.similar_recipes_query(
@@ -62,7 +61,7 @@ async def suggest_multiple_recipes(
 
         return structured
     except Exception as e:
-        print("❌ Error during suggest_multiple_recipes:", str(e))
+        print("Error during suggest_multiple_recipes:", str(e))
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Failed to generate recipes: {str(e)}")
 
