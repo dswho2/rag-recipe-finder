@@ -34,9 +34,8 @@ dist/
 build/
 *.egg-info/
 
-# temporary recipes
-recipes.csv
-recipes_cleaned.csv
-recipes_50k.csv
-recipes_50k_trimmed.csv
-recipes_200k.csv
+# datasets
+data/
+
+.serverless/
+node_modules/

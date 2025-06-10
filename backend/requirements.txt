@@ -1,5 +1,4 @@
 fastapi==0.115.12
-uvicorn==0.27.1
 pydantic==2.11.5
 pydantic-settings==2.9.1
 openai==1.84.0
@@ -12,4 +11,3 @@ langchain-pinecone==0.2.8
 langchain-community==0.3.24
 python-dotenv==1.0.1
 mangum==0.19.0
-pandas==2.2.0

@@ -1,0 +1,18 @@
+service: recipe-backend
+
+provider:
+  name: aws
+  region: ${env:AWS_REGION}
+  environment:
+    OPENAI_API_KEY: ${env:OPENAI_API_KEY}
+    PINECONE_API_KEY: ${env:PINECONE_API_KEY}
+  ecr:
+    images:
+      appimage:
+        path: .
+  
+
+functions:
+  app:
+    image:
+      name: appimage
