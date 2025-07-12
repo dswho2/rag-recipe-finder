@@ -2,11 +2,12 @@
 
 from fastapi import FastAPI
 from mangum import Mangum
+from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
 from app.api.recipes import router as recipes_router
+from app.api.create_job import router as create_job_router
 
-from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -22,6 +23,7 @@ app.add_middleware(
 )
 
 app.include_router(recipes_router, prefix="/api/recipes")
+app.include_router(create_job_router)
 
 # Handler for AWS Lambda
 handler = Mangum(app)

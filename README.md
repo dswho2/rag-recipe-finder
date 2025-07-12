@@ -2,6 +2,9 @@
 
 A web app to find recipes based on ingredients user inputs, utilizing a Retrieval-Augmented Generation (RAG) pipeline.
 
+![RecipeFinder](./RAG_Recipe_Finder.png)
+![RecipeDisplayed](./RAG_recipe_displayed.png)
+
 ## Features
 
 - **Ingredient-Based Recipe Search**: Enter the ingredients you have, get personalized recipe suggestions
@@ -240,4 +243,10 @@ python scripts/process_csv_recipes.py --test
 Can run the following command first to delete and reinit the dynamodb
 ```bash
 python scripts/reset_dynamodb.py
+```
+
+### Redeploying Backend
+```bash
+> $env:DOCKER_BUILDKIT=0
+> serverless deploy
 ```

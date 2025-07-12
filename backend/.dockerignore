@@ -1,0 +1,43 @@
+# Core dev-only folders
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Frontend or Node-related (just in case)
+node_modules/
+*.log
+
+# Build artifacts
+dist/
+build/
+.cache/
+.serverless/
+.pytest_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# Git & docs
+.git/
+.gitignore
+*.md
+
+# AWS & dotenv secrets
+.env
+.env.*
+.aws/
+
+# Data folders and files
+data/
+scripts/
+tests/
+*.csv
+*.tsv
+*.jsonl
+*.ipynb
+
+# OS-specific files
+.DS_Store
+Thumbs.db
